@@ -23,13 +23,31 @@
     </div>
   </header>
 
+  <!-- SEARCH BAR -->
+  <section class="search-section">
+    <div class="inner">
+      <div class="search-wrap">
+        <div class="search-box">
+          <span class="search-icon">⌕</span>
+          <input
+            type="text"
+            id="ticker-input"
+            placeholder="Search any ticker — NVDA, RELIANCE.NS, TSM, JPM..."
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button id="search-btn" onclick="handleSearch()">Analyse</button>
+        </div>
+        <div id="search-status" class="search-status"></div>
+      </div>
+    </div>
+  </section>
+
   <!-- COMPANY SELECTOR -->
   <section class="selector-bar">
     <div class="inner">
-      <span class="selector-label">Company</span>
-      <div class="ticker-tabs" id="ticker-tabs">
-        <!-- injected by JS -->
-      </div>
+      <span class="selector-label">Loaded</span>
+      <div class="ticker-tabs" id="ticker-tabs"></div>
     </div>
   </section>
 
@@ -40,9 +58,7 @@
         <h1 id="company-name">—</h1>
         <span id="company-sector" class="sector-tag"></span>
       </div>
-      <div class="hero-kpis" id="hero-kpis">
-        <!-- top 4 KPI cards injected here -->
-      </div>
+      <div class="hero-kpis" id="hero-kpis"></div>
     </div>
   </section>
 
@@ -50,9 +66,7 @@
   <section class="kpi-grid-section">
     <div class="inner">
       <h2 class="section-title">All KPIs — <span id="kpi-year"></span></h2>
-      <div class="kpi-grid" id="kpi-grid">
-        <!-- full KPI cards injected here -->
-      </div>
+      <div class="kpi-grid" id="kpi-grid"></div>
     </div>
   </section>
 
@@ -61,22 +75,10 @@
     <div class="inner">
       <h2 class="section-title">Trends Over Time</h2>
       <div class="charts-grid">
-        <div class="chart-card">
-          <div class="chart-label">Margins (%)</div>
-          <canvas id="chart-margins"></canvas>
-        </div>
-        <div class="chart-card">
-          <div class="chart-label">Revenue Growth YoY (%)</div>
-          <canvas id="chart-growth"></canvas>
-        </div>
-        <div class="chart-card">
-          <div class="chart-label">Return on Equity (%)</div>
-          <canvas id="chart-roe"></canvas>
-        </div>
-        <div class="chart-card">
-          <div class="chart-label">Free Cash Flow Margin (%)</div>
-          <canvas id="chart-fcf"></canvas>
-        </div>
+        <div class="chart-card"><div class="chart-label">Margins (%)</div><canvas id="chart-margins"></canvas></div>
+        <div class="chart-card"><div class="chart-label">Revenue Growth YoY (%)</div><canvas id="chart-growth"></canvas></div>
+        <div class="chart-card"><div class="chart-label">Return on Equity (%)</div><canvas id="chart-roe"></canvas></div>
+        <div class="chart-card"><div class="chart-label">Free Cash Flow Margin (%)</div><canvas id="chart-fcf"></canvas></div>
       </div>
     </div>
   </section>
@@ -106,9 +108,7 @@
   </section>
 
   <footer>
-    <div class="inner">
-      Data sourced via yfinance · Built with FastAPI + SQLite · For portfolio use only
-    </div>
+    <div class="inner">Data sourced via yfinance · Built with FastAPI + SQLite · For portfolio use only</div>
   </footer>
 
   <script src="script.js"></script>

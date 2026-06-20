@@ -1,4 +1,4 @@
-const API = "http://127.0.0.1:8000";
+const API = "https://financial-kpi-monitor.onrender.com";;
 
 let allCompareData = [];
 let activeTicker = "AAPL";
@@ -10,15 +10,67 @@ async function init() {
     fetchJSON("/companies"),
     fetchJSON("/compare"),
   ]);
-
   allCompareData = compareData;
-
   renderTickerTabs(companies);
   renderCompareTable(compareData);
   document.getElementById("last-updated").textContent =
     "Updated " + new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-
   await selectTicker(activeTicker, companies);
+
+  // Enter key triggers search
+  document.getElementById("ticker-input").addEventListener("keydown", e => {
+    if (e.key === "Enter") handleSearch();
+  });
+}
+
+// ── Search ────────────────────────────────────────────────────────────────────
+async function handleSearch() {
+  const input = document.getElementById("ticker-input");
+  const btn   = document.getElementById("search-btn");
+  const status = document.getElementById("search-status");
+  const ticker = input.value.trim().toUpperCase();
+
+  if (!ticker) return;
+
+  // UI: loading state
+  btn.disabled = true;
+  btn.textContent = "Fetching...";
+  status.className = "search-status loading";
+  status.textContent = `⟳ Fetching data for ${ticker} from Yahoo Finance...`;
+
+  try {
+    const res = await fetch(`${API}/fetch/${ticker}`, { method: "POST" });
+    const data = await res.json();
+
+    if (!res.ok) {
+      status.className = "search-status error";
+      status.textContent = `✗ ${data.detail || "Something went wrong"}`;
+      return;
+    }
+
+    status.className = "search-status success";
+    status.textContent = `✓ ${data.company} loaded — ${data.years_loaded} years of data in ${data.elapsed_seconds}s`;
+
+    // Refresh companies + compare table
+    const [companies, compareData] = await Promise.all([
+      fetchJSON("/companies"),
+      fetchJSON("/compare"),
+    ]);
+    allCompareData = compareData;
+    renderTickerTabs(companies);
+    renderCompareTable(compareData);
+
+    // Switch to the new ticker
+    await selectTicker(ticker);
+    input.value = "";
+
+  } catch (err) {
+    status.className = "search-status error";
+    status.textContent = `✗ Could not connect to API. Is it running?`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Analyse";
+  }
 }
 
 // ── Fetch helper ──────────────────────────────────────────────────────────────
@@ -39,15 +91,11 @@ function renderTickerTabs(companies) {
   `).join("");
 }
 
-async function selectTicker(ticker, companies) {
+async function selectTicker(ticker) {
   activeTicker = ticker;
-
-  // update tab highlight
   document.querySelectorAll(".ticker-tab").forEach(btn => {
     btn.classList.toggle("active", btn.textContent.trim() === ticker);
   });
-
-  // highlight compare table row
   document.querySelectorAll("#compare-body tr").forEach(row => {
     row.classList.toggle("active-row", row.dataset.ticker === ticker);
   });
@@ -70,10 +118,10 @@ function renderHero(company, kpis) {
   document.getElementById("kpi-year").textContent = kpis.year;
 
   const heroItems = [
-    { label: "Net Margin",     value: kpis.net_margin,        suffix: "%" },
-    { label: "Revenue Growth", value: kpis.revenue_growth_yoy,suffix: "%" },
-    { label: "ROE",            value: kpis.return_on_equity,  suffix: "%" },
-    { label: "Current Ratio",  value: kpis.current_ratio,     suffix: "x" },
+    { label: "Net Margin",     value: kpis.net_margin,         suffix: "%" },
+    { label: "Revenue Growth", value: kpis.revenue_growth_yoy, suffix: "%" },
+    { label: "ROE",            value: kpis.return_on_equity,   suffix: "%" },
+    { label: "Current Ratio",  value: kpis.current_ratio,      suffix: "x" },
   ];
 
   document.getElementById("hero-kpis").innerHTML = heroItems.map(item => {
@@ -89,7 +137,6 @@ function renderHero(company, kpis) {
 
 // ── KPI Grid ──────────────────────────────────────────────────────────────────
 const KPI_META = [
-  // [key, label, category, suffix, higherIsBetter]
   ["gross_margin",             "Gross Margin",          "Profitability", "%",  true ],
   ["operating_margin",         "Operating Margin",      "Profitability", "%",  true ],
   ["net_margin",               "Net Margin",            "Profitability", "%",  true ],
@@ -107,17 +154,13 @@ const KPI_META = [
 ];
 
 function renderKPIGrid(kpis) {
-  const container = document.getElementById("kpi-grid");
-  container.innerHTML = KPI_META.map(([key, label, cat, suffix, higherBetter]) => {
+  document.getElementById("kpi-grid").innerHTML = KPI_META.map(([key, label, cat, suffix, higherBetter]) => {
     const raw = kpis[key];
     let valStr, cls;
-    if (raw == null) {
-      valStr = "—"; cls = "null";
-    } else {
+    if (raw == null) { valStr = "—"; cls = "null"; }
+    else {
       valStr = raw.toFixed(2) + suffix;
-      cls = higherBetter
-        ? (raw >= 0 ? "good" : "bad")
-        : (raw <= 1 ? "good" : "bad");
+      cls = higherBetter ? (raw >= 0 ? "good" : "bad") : (raw <= 1 ? "good" : "bad");
     }
     return `
       <div class="kpi-card">
@@ -144,89 +187,50 @@ function destroyChart(id) {
 
 function makeChart(id, config) {
   destroyChart(id);
-  const ctx = document.getElementById(id).getContext("2d");
-  charts[id] = new Chart(ctx, config);
+  charts[id] = new Chart(document.getElementById(id).getContext("2d"), config);
 }
 
 function renderCharts(trends) {
-  const years  = trends.map(t => t.year);
-  const colors = {
-    gross:  "#4f8ef7",
-    net:    "#38d9a9",
-    op:     "#f5a623",
-    growth: "#4f8ef7",
-    roe:    "#38d9a9",
-    fcf:    "#f06595",
-  };
+  const years = trends.map(t => t.year);
+  const c = { gross: "#4f8ef7", net: "#38d9a9", op: "#f5a623", roe: "#38d9a9", fcf: "#f06595" };
 
-  // Margins
   makeChart("chart-margins", {
     type: "line",
-    data: {
-      labels: years,
-      datasets: [
-        { label: "Gross Margin",     data: trends.map(t => t.gross_margin),     borderColor: colors.gross,  tension: 0.3, fill: false },
-        { label: "Net Margin",       data: trends.map(t => t.net_margin),       borderColor: colors.net,    tension: 0.3, fill: false },
-        { label: "Operating Margin", data: trends.map(t => t.operating_margin), borderColor: colors.op,     tension: 0.3, fill: false },
-      ],
-    },
+    data: { labels: years, datasets: [
+      { label: "Gross Margin",     data: trends.map(t => t.gross_margin),     borderColor: c.gross, tension: 0.3, fill: false },
+      { label: "Net Margin",       data: trends.map(t => t.net_margin),       borderColor: c.net,   tension: 0.3, fill: false },
+      { label: "Operating Margin", data: trends.map(t => t.operating_margin), borderColor: c.op,    tension: 0.3, fill: false },
+    ]},
     options: CHART_DEFAULTS,
   });
 
-  // Revenue Growth
   makeChart("chart-growth", {
     type: "bar",
-    data: {
-      labels: years,
-      datasets: [{
-        label: "Revenue Growth %",
-        data: trends.map(t => t.revenue_growth_yoy),
-        backgroundColor: trends.map(t =>
-          t.revenue_growth_yoy == null ? "#252a3a"
-          : t.revenue_growth_yoy >= 0 ? "#4f8ef760" : "#f0659560"
-        ),
-        borderColor: trends.map(t =>
-          t.revenue_growth_yoy == null ? "#252a3a"
-          : t.revenue_growth_yoy >= 0 ? colors.growth : colors.fcf
-        ),
-        borderWidth: 2,
-        borderRadius: 4,
-      }],
-    },
+    data: { labels: years, datasets: [{
+      label: "Revenue Growth %",
+      data: trends.map(t => t.revenue_growth_yoy),
+      backgroundColor: trends.map(t => t.revenue_growth_yoy >= 0 ? "#4f8ef760" : "#f0659560"),
+      borderColor:     trends.map(t => t.revenue_growth_yoy >= 0 ? "#4f8ef7"   : "#f06595"),
+      borderWidth: 2, borderRadius: 4,
+    }]},
     options: CHART_DEFAULTS,
   });
 
-  // ROE
   makeChart("chart-roe", {
     type: "line",
-    data: {
-      labels: years,
-      datasets: [{
-        label: "ROE %",
-        data: trends.map(t => t.return_on_equity),
-        borderColor: colors.roe,
-        backgroundColor: colors.roe + "20",
-        tension: 0.3,
-        fill: true,
-      }],
-    },
+    data: { labels: years, datasets: [{
+      label: "ROE %", data: trends.map(t => t.return_on_equity),
+      borderColor: c.roe, backgroundColor: c.roe + "20", tension: 0.3, fill: true,
+    }]},
     options: CHART_DEFAULTS,
   });
 
-  // FCF Margin
   makeChart("chart-fcf", {
     type: "line",
-    data: {
-      labels: years,
-      datasets: [{
-        label: "FCF Margin %",
-        data: trends.map(t => t.free_cashflow_margin),
-        borderColor: colors.fcf,
-        backgroundColor: colors.fcf + "20",
-        tension: 0.3,
-        fill: true,
-      }],
-    },
+    data: { labels: years, datasets: [{
+      label: "FCF Margin %", data: trends.map(t => t.free_cashflow_margin),
+      borderColor: c.fcf, backgroundColor: c.fcf + "20", tension: 0.3, fill: true,
+    }]},
     options: CHART_DEFAULTS,
   });
 }
@@ -235,14 +239,11 @@ function renderCharts(trends) {
 function renderCompareTable(data) {
   const keys = ["gross_margin","net_margin","revenue_growth_yoy",
                 "return_on_equity","current_ratio","debt_to_equity","free_cashflow_margin"];
-
-  // find best/worst per column
-  const best  = {}, worst = {};
   const higherBetter = {
     gross_margin: true, net_margin: true, revenue_growth_yoy: true,
-    return_on_equity: true, current_ratio: true,
-    debt_to_equity: false, free_cashflow_margin: true,
+    return_on_equity: true, current_ratio: true, debt_to_equity: false, free_cashflow_margin: true,
   };
+  const best = {}, worst = {};
   keys.forEach(k => {
     const vals = data.map(d => d[k]).filter(v => v != null);
     best[k]  = higherBetter[k] ? Math.max(...vals) : Math.min(...vals);
