@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Financial KPI Monitor</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header>
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-mark">▲</span>
+        <span class="logo-text">KPI<strong>Monitor</strong></span>
+      </div>
+      <div class="header-meta">
+        <span id="last-updated">Loading...</span>
+        <span class="badge">Live Data · yfinance</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- COMPANY SELECTOR -->
+  <section class="selector-bar">
+    <div class="inner">
+      <span class="selector-label">Company</span>
+      <div class="ticker-tabs" id="ticker-tabs">
+        <!-- injected by JS -->
+      </div>
+    </div>
+  </section>
+
+  <!-- COMPANY HERO -->
+  <section class="company-hero">
+    <div class="inner">
+      <div class="company-meta">
+        <h1 id="company-name">—</h1>
+        <span id="company-sector" class="sector-tag"></span>
+      </div>
+      <div class="hero-kpis" id="hero-kpis">
+        <!-- top 4 KPI cards injected here -->
+      </div>
+    </div>
+  </section>
+
+  <!-- KPI GRID -->
+  <section class="kpi-grid-section">
+    <div class="inner">
+      <h2 class="section-title">All KPIs — <span id="kpi-year"></span></h2>
+      <div class="kpi-grid" id="kpi-grid">
+        <!-- full KPI cards injected here -->
+      </div>
+    </div>
+  </section>
+
+  <!-- CHARTS -->
+  <section class="charts-section">
+    <div class="inner">
+      <h2 class="section-title">Trends Over Time</h2>
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-label">Margins (%)</div>
+          <canvas id="chart-margins"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="chart-label">Revenue Growth YoY (%)</div>
+          <canvas id="chart-growth"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="chart-label">Return on Equity (%)</div>
+          <canvas id="chart-roe"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="chart-label">Free Cash Flow Margin (%)</div>
+          <canvas id="chart-fcf"></canvas>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMPARE TABLE -->
+  <section class="compare-section">
+    <div class="inner">
+      <h2 class="section-title">Company Comparison — Latest Year</h2>
+      <div class="table-wrap">
+        <table id="compare-table">
+          <thead>
+            <tr>
+              <th>Company</th>
+              <th>Gross Margin</th>
+              <th>Net Margin</th>
+              <th>Rev Growth</th>
+              <th>ROE</th>
+              <th>Current Ratio</th>
+              <th>Debt/Equity</th>
+              <th>FCF Margin</th>
+            </tr>
+          </thead>
+          <tbody id="compare-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="inner">
+      Data sourced via yfinance · Built with FastAPI + SQLite · For portfolio use only
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
