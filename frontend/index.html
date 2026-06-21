@@ -4,12 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Financial KPI Monitor</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="/style.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
 
-  <!-- HEADER -->
   <header>
     <div class="header-inner">
       <div class="logo">
@@ -23,7 +22,6 @@
     </div>
   </header>
 
-  <!-- SEARCH BAR -->
   <section class="search-section">
     <div class="inner">
       <div class="search-wrap">
@@ -43,7 +41,6 @@
     </div>
   </section>
 
-  <!-- COMPANY SELECTOR -->
   <section class="selector-bar">
     <div class="inner">
       <span class="selector-label">Loaded</span>
@@ -51,7 +48,6 @@
     </div>
   </section>
 
-  <!-- COMPANY HERO -->
   <section class="company-hero">
     <div class="inner">
       <div class="company-meta">
@@ -62,7 +58,6 @@
     </div>
   </section>
 
-  <!-- KPI GRID -->
   <section class="kpi-grid-section">
     <div class="inner">
       <h2 class="section-title">All KPIs — <span id="kpi-year"></span></h2>
@@ -70,7 +65,6 @@
     </div>
   </section>
 
-  <!-- CHARTS -->
   <section class="charts-section">
     <div class="inner">
       <h2 class="section-title">Trends Over Time</h2>
@@ -83,7 +77,6 @@
     </div>
   </section>
 
-  <!-- COMPARE TABLE -->
   <section class="compare-section">
     <div class="inner">
       <h2 class="section-title">Company Comparison — Latest Year</h2>
@@ -91,14 +84,9 @@
         <table id="compare-table">
           <thead>
             <tr>
-              <th>Company</th>
-              <th>Gross Margin</th>
-              <th>Net Margin</th>
-              <th>Rev Growth</th>
-              <th>ROE</th>
-              <th>Current Ratio</th>
-              <th>Debt/Equity</th>
-              <th>FCF Margin</th>
+              <th>Company</th><th>Gross Margin</th><th>Net Margin</th>
+              <th>Rev Growth</th><th>ROE</th><th>Current Ratio</th>
+              <th>Debt/Equity</th><th>FCF Margin</th>
             </tr>
           </thead>
           <tbody id="compare-body"></tbody>
@@ -111,6 +99,6 @@
     <div class="inner">Data sourced via yfinance · Built with FastAPI + SQLite · For portfolio use only</div>
   </footer>
 
-  <script src="script.js"></script>
+  <script src="/script.js"></script>
 </body>
 </html>

@@ -1,19 +1,10 @@
 """
-Layer 5: FastAPI API
-Exposes KPI and financial data as JSON endpoints for the frontend.
+Layer 5: FastAPI API + Frontend Server
+Serves both the API and the frontend from a single process.
 
-Run:  uvicorn src.api.main:app --reload
+Run:  python -m uvicorn src.api.main:app --reload
 Docs: http://127.0.0.1:8000/docs
-
-Endpoints:
-  GET  /companies              - list all companies with basic info
-  GET  /companies/{ticker}     - single company info
-  GET  /kpis                   - all KPIs (optional ?ticker=AAPL&year=2024)
-  GET  /kpis/{ticker}          - all years of KPIs for one company
-  GET  /kpis/{ticker}/latest   - most recent year's KPIs for one company
-  GET  /compare                - latest KPIs for all companies side-by-side
-  GET  /trends/{ticker}        - year-over-year trend data for charts
-  POST /fetch/{ticker}         - fetch, process & compute KPIs for any ticker on demand
+App:  http://127.0.0.1:8000/
 """
 
 import sqlite3
@@ -23,8 +14,11 @@ from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
-DB_PATH = Path(__file__).resolve().parents[2] / "data" / "financial_kpi.db"
+DB_PATH    = Path(__file__).resolve().parents[2] / "data" / "financial_kpi.db"
+FRONT_DIR  = Path(__file__).resolve().parents[2] / "frontend"
 
 
 def get_conn():
@@ -51,6 +45,16 @@ app.add_middleware(
 )
 
 
+# ── Serve frontend ─────────────────────────────────────────────────────────────
+@app.get("/", include_in_schema=False)
+def serve_index():
+    return FileResponse(FRONT_DIR / "index.html")
+
+
+# Mount CSS/JS/assets — must come AFTER all API routes are defined
+# (we register this at the end of the file)
+
+
 # ── /fetch/{ticker} — on-demand pipeline ─────────────────────────────────────
 @app.post("/fetch/{ticker}", summary="Fetch & analyse any ticker on demand")
 def fetch_ticker(ticker: str):
@@ -58,7 +62,6 @@ def fetch_ticker(ticker: str):
     t0 = time.time()
 
     try:
-        # Step 1: Extract
         from src.etl.extract import fetch_company_financials, save_raw
         data = fetch_company_financials(ticker)
         if not data.get("income_stmt"):
@@ -68,30 +71,25 @@ def fetch_ticker(ticker: str):
             )
         save_raw(ticker, data)
 
-        # Step 2: Transform
         from src.etl.transform import transform_ticker
         frames = transform_ticker(ticker)
 
-        # Step 3: Load
-        import json, math, sqlite3, pandas as pd
+        import pandas as pd
         from src.etl.load import load_companies, get_connection, _clean_val
 
-        # Load company info
         load_companies()
 
-        # Load income
-        inc = frames.get("income", pd.DataFrame())
-        bal = frames.get("balance", pd.DataFrame())
+        inc = frames.get("income",   pd.DataFrame())
+        bal = frames.get("balance",  pd.DataFrame())
         cf  = frames.get("cashflow", pd.DataFrame())
 
         def insert_df(df, table, columns):
             if df.empty:
                 return
             conn = get_connection()
-            cur = conn.cursor()
-            placeholders = ", ".join(["?"] * len(columns))
-            col_names = ", ".join(columns)
-            sql = f"INSERT OR REPLACE INTO {table} ({col_names}) VALUES ({placeholders})"
+            cur  = conn.cursor()
+            ph   = ", ".join(["?"] * len(columns))
+            sql  = f"INSERT OR REPLACE INTO {table} ({', '.join(columns)}) VALUES ({ph})"
             for _, row in df.iterrows():
                 cur.execute(sql, [_clean_val(row.get(c)) for c in columns])
             conn.commit()
@@ -110,26 +108,24 @@ def fetch_ticker(ticker: str):
             "ticker","year","operating_cashflow","capex","free_cashflow"
         ])
 
-        # Step 4: KPIs
         from src.kpi.calculations import load_data, compute_kpis, save_kpis
-        all_data = load_data()
+        all_data    = load_data()
         ticker_data = all_data[all_data["ticker"] == ticker]
         if ticker_data.empty:
             raise HTTPException(status_code=422, detail="Data loaded but KPI computation failed.")
         kpi_df = compute_kpis(ticker_data)
-        # Merge into full kpis table
-        conn = get_connection()
+
+        conn     = get_connection()
         existing = pd.read_sql("SELECT * FROM kpis WHERE ticker != ?", conn, params=[ticker])
         conn.close()
-        full_kpis = pd.concat([existing, kpi_df], ignore_index=True)
-        save_kpis(full_kpis)
+        save_kpis(pd.concat([existing, kpi_df], ignore_index=True))
 
         elapsed = round(time.time() - t0, 1)
         return {
             "success": True,
             "ticker": ticker,
             "company": data["info"].get("shortName", ticker),
-            "sector": data["info"].get("sector"),
+            "sector":  data["info"].get("sector"),
             "years_loaded": len(inc),
             "elapsed_seconds": elapsed,
             "message": f"Successfully fetched and analysed {ticker} in {elapsed}s"
@@ -153,9 +149,7 @@ def list_companies():
 @app.get("/companies/{ticker}", summary="Single company info")
 def get_company(ticker: str):
     conn = get_conn()
-    row = conn.execute(
-        "SELECT * FROM companies WHERE ticker = ?", (ticker.upper(),)
-    ).fetchone()
+    row  = conn.execute("SELECT * FROM companies WHERE ticker = ?", (ticker.upper(),)).fetchone()
     conn.close()
     if not row:
         raise HTTPException(status_code=404, detail=f"Ticker '{ticker}' not found")
@@ -168,14 +162,11 @@ def list_kpis(
     ticker: Optional[str] = Query(None),
     year:   Optional[int] = Query(None),
 ):
-    sql = "SELECT * FROM kpis WHERE 1=1"
-    params = []
+    sql, params = "SELECT * FROM kpis WHERE 1=1", []
     if ticker:
-        sql += " AND ticker = ?"
-        params.append(ticker.upper())
+        sql += " AND ticker = ?"; params.append(ticker.upper())
     if year:
-        sql += " AND year = ?"
-        params.append(year)
+        sql += " AND year = ?";   params.append(year)
     sql += " ORDER BY ticker, year DESC"
     conn = get_conn()
     rows = conn.execute(sql, params).fetchall()
@@ -198,7 +189,7 @@ def get_kpis_for_ticker(ticker: str):
 @app.get("/kpis/{ticker}/latest", summary="Latest year KPIs for one company")
 def get_latest_kpis(ticker: str):
     conn = get_conn()
-    row = conn.execute(
+    row  = conn.execute(
         "SELECT * FROM kpis WHERE ticker = ? ORDER BY year DESC LIMIT 1", (ticker.upper(),)
     ).fetchone()
     conn.close()
@@ -242,7 +233,5 @@ def get_trends(ticker: str):
     return rows_to_list(rows)
 
 
-# ── health ────────────────────────────────────────────────────────────────────
-@app.get("/")
-def root():
-    return {"status": "ok", "message": "Financial KPI Monitor API is running"}
+# ── Mount static files (CSS, JS) — must be last ───────────────────────────────
+app.mount("/", StaticFiles(directory=str(FRONT_DIR)), name="static")
